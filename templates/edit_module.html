@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Edit {{ module.name }} — GradeTrack{% endblock %}
+
+{% block content %}
+<div class="breadcrumb">
+  <a href="/" class="breadcrumb-link">Dashboard</a>
+  <span class="breadcrumb-sep">/</span>
+  <a href="/module/{{ module.id }}" class="breadcrumb-link">{{ module.name }}</a>
+  <span class="breadcrumb-sep">/</span>
+  <span>Edit</span>
+</div>
+
+<div class="single-form-page">
+  <div class="form-panel" style="max-width:480px">
+    <h3 class="panel-title">EDIT MODULE</h3>
+    <form method="POST" action="/module/{{ module.id }}/edit">
+      <div class="field">
+        <label class="field-label">MODULE NAME</label>
+        <input type="text" name="name" class="field-input" value="{{ module.name }}" required>
+      </div>
+      <div class="field">
+        <label class="field-label">YEAR</label>
+        <div class="year-toggle-row">
+          <label class="year-toggle">
+            <input type="radio" name="year" value="2" {% if module.year == 2 %}checked{% endif %}>
+            <span>2ND YEAR</span>
+          </label>
+          <label class="year-toggle">
+            <input type="radio" name="year" value="3" {% if module.year == 3 %}checked{% endif %}>
+            <span>3RD YEAR</span>
+          </label>
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label class="field-label">CREDITS</label>
+          <input type="number" name="credits" class="field-input" value="{{ module.credits }}" min="1" max="120" required>
+        </div>
+        <div class="field">
+          <label class="field-label">TARGET (%)</label>
+          <input type="number" name="target_grade" class="field-input" value="{{ module.target_grade }}" min="0" max="100" step="0.1" required>
+        </div>
+      </div>
+      <div style="display:flex;gap:.75rem;margin-top:1rem">
+        <a href="/module/{{ module.id }}" class="btn-secondary">CANCEL</a>
+        <button type="submit" class="btn-primary">SAVE CHANGES</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

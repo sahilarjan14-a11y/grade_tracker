@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+{% block title %}{{ module.name }} — GradeTrack{% endblock %}
+
+{% block content %}
+
+<!-- breadcrumb -->
+<div class="breadcrumb">
+  <a href="/" class="breadcrumb-link">Dashboard</a>
+  <span class="breadcrumb-sep">/</span>
+  <span>{{ module.name }}</span>
+</div>
+
+<!-- module summary bar -->
+<section class="summary-bar">
+  <div class="summary-left">
+    <span class="summary-label">{{ module.name }}</span>
+    <span class="summary-score {{ css }}">
+      {% if average is not none %}{{ "%.2f"|format(average) }}%{% else %}—{% endif %}
+    </span>
+    <span class="summary-badge {{ css }}">{{ label }}</span>
+    <span class="summary-meta" style="margin-left:1.5rem">TARGET
+      <span class="{{ target_css }}">{{ "%.0f"|format(module.target_grade) }}%</span>
+      <span class="grade-badge {{ target_css }}" style="margin-left:4px">{{ target_label }}</span>
+    </span>
+  </div>
+  <div class="summary-right">
+    <span class="summary-meta">{{ module.credits }} CREDITS</span>
+    <span class="summary-meta" style="margin-left:1rem">YEAR {{ module.year }}</span>
+    <span class="summary-meta" style="margin-left:1rem">WEIGHT ALLOCATED: {{ "%.0f"|format(total_weight) }}%</span>
+  </div>
+</section>
+
+<div class="page-grid">
+
+  <!-- left: assessments table -->
+  <div class="modules-section">
+    <div class="section-header">
+      <h2 class="section-title">ASSESSMENTS</h2>
+    </div>
+
+    {% if not assessments %}
+    <div class="empty-state">
+      <p>No assessments yet. Add one using the form.</p>
+    </div>
+    {% else %}
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>NAME</th>
+            <th>WEIGHTING</th>
+            <th>SCORE</th>
+            <th>CONTRIBUTION</th>
+            <th>GRADE</th>
+            <th>ACTIONS</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for a in assessments %}
+            {% set a_label, a_css = grade_label(a.score) %}
+            <tr id="row-{{ a.id }}">
+              <td class="assessment-name">{{ a.name }}</td>
+              <td>{{ "%.1f"|format(a.weighting) }}%</td>
+              <td class="{{ a_css if a.score is not none else '' }}">
+                {% if a.score is not none %}{{ "%.2f"|format(a.score) }}%{% else %}<span class="pending">pending</span>{% endif %}
+              </td>
+              <td>
+                {% if a.score is not none %}
+                  {{ "%.2f"|format(a.score * a.weighting / 100) }}
+                {% else %}
+                  <span class="pending">—</span>
+                {% endif %}
+              </td>
+              <td><span class="grade-badge {{ a_css if a.score is not none else 'grade-na' }}">{{ a_label if a.score is not none else '—' }}</span></td>
+              <td class="action-cell">
+                <button class="btn-sm btn-ghost" onclick="openEditModal({{ a.id }}, '{{ a.name }}', {{ a.weighting }}, '{{ a.score if a.score is not none else '' }}')">EDIT</button>
+                <form method="POST" action="/assessment/{{ a.id }}/delete" class="inline-form" onsubmit="return confirm('Delete {{ a.name }}?')">
+                  <button type="submit" class="btn-sm btn-danger">DEL</button>
+                </form>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr class="table-total">
+            <td>TOTAL</td>
+            <td>{{ "%.1f"|format(total_weight) }}%</td>
+            <td colspan="2">
+              {% if average is not none %}Weighted avg: <strong class="{{ css }}">{{ "%.2f"|format(average) }}%</strong>{% endif %}
+            </td>
+            <td colspan="2"></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- right: add assessment + module edit -->
+  <div class="sidebar">
+    <div class="form-panel">
+      <h3 class="panel-title">ADD ASSESSMENT</h3>
+      <form method="POST" action="/module/{{ module.id }}/assessment/add">
+        <div class="field">
+          <label class="field-label">ASSESSMENT NAME</label>
+          <input type="text" name="name" class="field-input" placeholder="e.g. Coursework 1" required>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label class="field-label">WEIGHTING (%)</label>
+            <input type="number" name="weighting" class="field-input" placeholder="30" min="0.1" max="100" step="0.1" required>
+          </div>
+          <div class="field">
+            <label class="field-label">SCORE (%)</label>
+            <input type="number" name="score" class="field-input" placeholder="optional" min="0" max="100" step="0.01">
+          </div>
+        </div>
+        <button type="submit" class="btn-primary">ADD ASSESSMENT</button>
+      </form>
+    </div>
+
+    <div class="form-panel">
+      <h3 class="panel-title">MODULE SETTINGS</h3>
+      <div class="module-quick-actions">
+        <a href="/module/{{ module.id }}/edit" class="btn-secondary full-width">EDIT MODULE</a>
+        <form method="POST" action="/module/{{ module.id }}/delete" onsubmit="return confirm('Delete this module and all its assessments?')">
+          <button type="submit" class="btn-danger full-width" style="margin-top:.5rem">DELETE MODULE</button>
+        </form>
+      </div>
+    </div>
+
+    <div class="form-panel grade-key">
+      <h3 class="panel-title">GRADE BOUNDARIES</h3>
+      <div class="grade-key-list">
+        <div class="grade-key-item"><span class="grade-dot grade-first"></span><span>First</span><span class="grade-key-val">70%+</span></div>
+        <div class="grade-key-item"><span class="grade-dot grade-upper"></span><span>2:1</span><span class="grade-key-val">60&ndash;69%</span></div>
+        <div class="grade-key-item"><span class="grade-dot grade-lower"></span><span>2:2</span><span class="grade-key-val">50&ndash;59%</span></div>
+        <div class="grade-key-item"><span class="grade-dot grade-third"></span><span>Third</span><span class="grade-key-val">40&ndash;49%</span></div>
+        <div class="grade-key-item"><span class="grade-dot grade-fail"></span><span>Fail</span><span class="grade-key-val">&lt;40%</span></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- edit assessment modal -->
+<div class="modal-overlay" id="editModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 class="modal-title">EDIT ASSESSMENT</h3>
+      <button class="modal-close" onclick="closeEditModal()">&#x2715;</button>
+    </div>
+    <form method="POST" id="editForm" action="">
+      <div class="field">
+        <label class="field-label">ASSESSMENT NAME</label>
+        <input type="text" name="name" id="editName" class="field-input" required>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label class="field-label">WEIGHTING (%)</label>
+          <input type="number" name="weighting" id="editWeighting" class="field-input" min="0.1" max="100" step="0.1" required>
+        </div>
+        <div class="field">
+          <label class="field-label">SCORE (%)</label>
+          <input type="number" name="score" id="editScore" class="field-input" min="0" max="100" step="0.01">
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn-secondary" onclick="closeEditModal()">CANCEL</button>
+        <button type="submit" class="btn-primary">SAVE CHANGES</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% endblock %}

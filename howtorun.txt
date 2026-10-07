@@ -1,0 +1,3 @@
+pip install flask
+python app.py
+# visit http://localhost:5000

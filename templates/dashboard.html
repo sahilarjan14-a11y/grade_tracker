@@ -1,0 +1,277 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — GradeTrack{% endblock %}
+
+{% block content %}
+
+<!-- degree summary bar -->
+<section class="summary-bar">
+  <div class="summary-left">
+    <span class="summary-label">OVERALL DEGREE AVERAGE</span>
+    <span class="summary-score {{ degree_css }}">
+      {% if degree_avg is not none %}{{ "%.2f"|format(degree_avg) }}%{% else %}--{% endif %}
+    </span>
+    <span class="summary-badge {{ degree_css }}">{{ degree_label }}</span>
+  </div>
+  <div class="summary-right year-weights-display">
+    <div class="year-weight-pill">
+      <span class="ywp-label">2ND YEAR</span>
+      <span class="ywp-val">33%</span>
+    </div>
+    <span class="ywp-sep">+</span>
+    <div class="year-weight-pill">
+      <span class="ywp-label">3RD YEAR</span>
+      <span class="ywp-val">67%</span>
+    </div>
+    <span class="summary-meta" style="margin-left:1rem">{{ total_modules }} MODULE{{ 's' if total_modules != 1 }}</span>
+  </div>
+</section>
+
+<!-- year tabs -->
+<div class="year-tab-bar">
+  <button class="year-tab active" data-tab="2">
+    <span class="tab-label">2ND YEAR</span>
+    <span class="tab-sub">33% of degree</span>
+    {% if year_data[2].average is not none %}
+    <span class="tab-avg {{ year_data[2].css }}">{{ "%.2f"|format(year_data[2].average) }}%</span>
+    {% else %}
+    <span class="tab-avg grade-na">no data</span>
+    {% endif %}
+  </button>
+  <button class="year-tab" data-tab="3">
+    <span class="tab-label">3RD YEAR</span>
+    <span class="tab-sub">67% of degree</span>
+    {% if year_data[3].average is not none %}
+    <span class="tab-avg {{ year_data[3].css }}">{{ "%.2f"|format(year_data[3].average) }}%</span>
+    {% else %}
+    <span class="tab-avg grade-na">no data</span>
+    {% endif %}
+  </button>
+</div>
+
+<!-- tab panels -->
+{% for year in [2, 3] %}
+{% set yd = year_data[year] %}
+<div class="tab-panel" data-panel="{{ year }}" style="display:none">
+  <div class="page-grid">
+
+    <!-- module list -->
+    <div class="modules-section">
+
+      {% if not yd.modules %}
+      <div class="empty-state">No year {{ year }} modules yet. Add one using the form.</div>
+      {% endif %}
+
+      {% for m in yd.modules %}
+      <div class="module-card" id="module-{{ m.id }}">
+
+        <!-- card header - always visible, click to expand -->
+        <div class="module-card-header accordion-trigger" data-target="acc-{{ m.id }}">
+          <div class="module-title-row">
+            <span class="accordion-chevron" id="chev-{{ m.id }}">&#9654;</span>
+            <span class="module-name">{{ m.name }}</span>
+            <span class="module-credits">{{ m.credits }} CR</span>
+          </div>
+          <div class="module-header-right">
+            <div class="module-grade-summary">
+              <span class="stat-value {{ m.css }}" style="font-size:1.2rem">
+                {% if m.average is not none %}{{ "%.2f"|format(m.average) }}%{% else %}--{% endif %}
+              </span>
+              <span class="grade-badge {{ m.css }}">{{ m.label }}</span>
+            </div>
+            <div class="module-grade-summary" style="margin-left:1rem">
+              <span class="stat-label">TARGET</span>
+              <span class="stat-value {{ m.target_css }}" style="font-size:1.2rem">{{ "%.0f"|format(m.target_grade) }}%</span>
+              <span class="grade-badge {{ m.target_css }}">{{ m.target_label }}</span>
+            </div>
+            {% if m.average is not none %}
+              {% set gap = m.average - m.target_grade %}
+              <span class="header-gap {% if gap >= 0 %}gap-above{% else %}gap-below{% endif %}">
+                {% if gap >= 0 %}+{% endif %}{{ "%.2f"|format(gap) }}%
+              </span>
+            {% endif %}
+          </div>
+        </div>
+
+        <!-- accordion body -->
+        <div class="accordion-body" id="acc-{{ m.id }}" style="display:none">
+
+          <!-- assessment table -->
+          <div class="acc-assessments">
+            {% if not m.assessments %}
+            <div class="acc-empty">No assessments yet.</div>
+            {% else %}
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>NAME</th>
+                  <th>WEIGHTING</th>
+                  <th>SCORE</th>
+                  <th>CONTRIBUTION</th>
+                  <th>GRADE</th>
+                  <th>ACTIONS</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for a in m.assessments %}
+                <tr>
+                  <td class="assessment-name">{{ a.name }}</td>
+                  <td>{{ "%.1f"|format(a.weighting) }}%</td>
+                  <td class="{{ a.css if a.score is not none else '' }}">
+                    {% if a.score is not none %}{{ "%.2f"|format(a.score) }}%{% else %}<span class="pending">pending</span>{% endif %}
+                  </td>
+                  <td>
+                    {% if a.contribution is not none %}{{ "%.2f"|format(a.contribution) }}{% else %}<span class="pending">--</span>{% endif %}
+                  </td>
+                  <td><span class="grade-badge {{ a.css if a.score is not none else 'grade-na' }}">{{ a.label if a.score is not none else '--' }}</span></td>
+                  <td class="action-cell">
+                    <button class="btn-sm btn-ghost"
+                      onclick="openEditModal({{ a.id }}, '{{ a.name|replace("'", "\\'") }}', {{ a.weighting }}, '{{ a.score if a.score is not none else '' }}')">EDIT</button>
+                    <form method="POST" action="/assessment/{{ a.id }}/delete" class="inline-form"
+                      onsubmit="return confirm('Delete {{ a.name }}?')">
+                      <button type="submit" class="btn-sm btn-danger">DEL</button>
+                    </form>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+              <tfoot>
+                <tr class="table-total">
+                  <td>TOTAL</td>
+                  <td>{{ "%.1f"|format(m.total_weight) }}%</td>
+                  <td colspan="2">
+                    {% if m.average is not none %}
+                    Weighted avg: <strong class="{{ m.css }}">{{ "%.2f"|format(m.average) }}%</strong>
+                    {% endif %}
+                  </td>
+                  <td colspan="2"></td>
+                </tr>
+              </tfoot>
+            </table>
+            {% endif %}
+          </div>
+
+          <!-- add assessment + module actions row -->
+          <div class="acc-footer">
+            <div class="acc-add-form">
+              <span class="acc-form-title">ADD ASSESSMENT</span>
+              <form method="POST" action="/module/{{ m.id }}/assessment/add" class="inline-assessment-form">
+                <input type="text" name="name" class="field-input acc-input" placeholder="Name" required>
+                <input type="number" name="weighting" class="field-input acc-input acc-input-sm"
+                  placeholder="Weight %" min="0.1" max="100" step="0.1" required>
+                <input type="number" name="score" class="field-input acc-input acc-input-sm"
+                  placeholder="Score %" min="0" max="100" step="0.01">
+                <button type="submit" class="btn-primary acc-submit">ADD</button>
+              </form>
+            </div>
+            <div class="acc-module-actions">
+              <a href="/module/{{ m.id }}/edit" class="btn-sm btn-ghost">EDIT MODULE</a>
+              <form method="POST" action="/module/{{ m.id }}/delete" class="inline-form"
+                onsubmit="return confirm('Delete {{ m.name }} and all its assessments?')">
+                <button type="submit" class="btn-sm btn-danger">DELETE MODULE</button>
+              </form>
+            </div>
+          </div>
+
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    <!-- sidebar: add module + grade key -->
+    <div class="sidebar">
+      <div class="form-panel">
+        <h3 class="panel-title">ADD MODULE</h3>
+        <form method="POST" action="/module/add">
+          <div class="field">
+            <label class="field-label">MODULE NAME</label>
+            <input type="text" name="name" class="field-input" placeholder="e.g. Software Engineering" required>
+          </div>
+          <div class="field">
+            <label class="field-label">YEAR</label>
+            <div class="year-toggle-row">
+              <label class="year-toggle">
+                <input type="radio" name="year" value="2" {% if year == 2 %}checked{% endif %}>
+                <span>2ND</span>
+              </label>
+              <label class="year-toggle">
+                <input type="radio" name="year" value="3" {% if year == 3 %}checked{% endif %}>
+                <span>3RD</span>
+              </label>
+            </div>
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label class="field-label">CREDITS</label>
+              <input type="number" name="credits" class="field-input" value="15" min="1" max="120" required>
+            </div>
+            <div class="field">
+              <label class="field-label">TARGET (%)</label>
+              <input type="number" name="target_grade" class="field-input" value="70" min="0" max="100" step="0.1" required>
+            </div>
+          </div>
+          <button type="submit" class="btn-primary">ADD MODULE</button>
+        </form>
+      </div>
+
+      <div class="form-panel">
+        <h3 class="panel-title">YEAR WEIGHTING</h3>
+        <div class="year-weight-breakdown">
+          <div class="ywb-bar-wrap">
+            <div class="ywb-bar" style="width:33%"><span class="ywb-bar-label">Y2</span></div>
+            <div class="ywb-bar ywb-bar-y3" style="width:67%"><span class="ywb-bar-label">Y3</span></div>
+          </div>
+          <div class="ywb-legend">
+            <span><span class="ywb-dot ywb-dot-y2"></span>2nd Year 33%</span>
+            <span><span class="ywb-dot ywb-dot-y3"></span>3rd Year 67%</span>
+          </div>
+          <p class="ywb-note">Year averages are credit-weighted within each year before being combined.</p>
+        </div>
+      </div>
+
+      <div class="form-panel grade-key">
+        <h3 class="panel-title">GRADE BOUNDARIES</h3>
+        <div class="grade-key-list">
+          <div class="grade-key-item"><span class="grade-dot grade-first"></span><span>First</span><span class="grade-key-val">70%+</span></div>
+          <div class="grade-key-item"><span class="grade-dot grade-upper"></span><span>2:1</span><span class="grade-key-val">60-69%</span></div>
+          <div class="grade-key-item"><span class="grade-dot grade-lower"></span><span>2:2</span><span class="grade-key-val">50-59%</span></div>
+          <div class="grade-key-item"><span class="grade-dot grade-third"></span><span>Third</span><span class="grade-key-val">40-49%</span></div>
+          <div class="grade-key-item"><span class="grade-dot grade-fail"></span><span>Fail</span><span class="grade-key-val">below 40%</span></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endfor %}
+
+<!-- edit assessment modal -->
+<div class="modal-overlay" id="editModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 class="modal-title">EDIT ASSESSMENT</h3>
+      <button class="modal-close" onclick="closeEditModal()">&#x2715;</button>
+    </div>
+    <form method="POST" id="editForm" action="">
+      <div class="field">
+        <label class="field-label">ASSESSMENT NAME</label>
+        <input type="text" name="name" id="editName" class="field-input" required>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label class="field-label">WEIGHTING (%)</label>
+          <input type="number" name="weighting" id="editWeighting" class="field-input" min="0.1" max="100" step="0.1" required>
+        </div>
+        <div class="field">
+          <label class="field-label">SCORE (%)</label>
+          <input type="number" name="score" id="editScore" class="field-input" min="0" max="100" step="0.01">
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn-secondary" onclick="closeEditModal()">CANCEL</button>
+        <button type="submit" class="btn-primary">SAVE CHANGES</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% endblock %}
