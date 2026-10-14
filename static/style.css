@@ -897,3 +897,80 @@ a:hover { color: var(--white); }
   .acc-footer { flex-direction: column; align-items: flex-start; }
   .header-gap { display: none; }
 }
+
+/* ---- earned/possible score display ---- */
+.summary-score-denom {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text-dim);
+  margin-left: .15rem;
+}
+
+/* module card earned marks stack */
+.module-earned-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+}
+.earned-main {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 1.25rem;
+  font-weight: 800;
+  line-height: 1;
+}
+.earned-denom {
+  font-size: .75rem;
+  font-weight: 600;
+  color: var(--text-dim);
+  margin-left: 2px;
+}
+.earned-sub {
+  font-size: .62rem;
+  color: var(--text-dim);
+  font-family: 'Barlow Condensed', sans-serif;
+  letter-spacing: .04em;
+  white-space: nowrap;
+}
+
+/* performance score (smaller, next to badge) */
+.perf-score {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+/* marks banked column denom */
+.contrib-denom {
+  font-size: .75rem;
+  color: var(--text-dim);
+  margin-left: 2px;
+}
+
+/* scoring explainer panel */
+.scoring-explainer {
+  display: flex;
+  flex-direction: column;
+  gap: .6rem;
+}
+.se-row {
+  display: flex;
+  flex-direction: column;
+  gap: .15rem;
+  padding-bottom: .5rem;
+  border-bottom: 1px solid var(--border);
+}
+.se-row:last-child { border-bottom: none; padding-bottom: 0; }
+.se-label {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: .65rem;
+  font-weight: 700;
+  color: var(--orange);
+  letter-spacing: .1em;
+}
+.se-desc {
+  font-size: .75rem;
+  color: var(--text-dim);
+  line-height: 1.4;
+}

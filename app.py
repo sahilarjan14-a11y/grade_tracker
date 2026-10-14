@@ -6,13 +6,19 @@ db.init_db()
 
 
 def build_module_data(m):
-    # build a fully-processed module dict including assessments
-    avg = db.calc_module_average(m["id"])
+    stats = db.calc_module_stats(m["id"])
     assessments = db.get_assessments(m["id"])
-    label, css = db.grade_label(avg)
-    target_label, target_css = db.grade_label(m["target_grade"])
+
+    # earned = raw banked marks out of 100
+    # performance = normalised score on submitted work (used for grade badge)
+    earned = stats["earned"]
+    performance = stats["performance"]
+    scored_weight = stats["scored_weight"]
     total_weight = sum(a["weighting"] for a in assessments)
-    scored_weight = sum(a["weighting"] for a in assessments if a["score"] is not None)
+
+    # grade badge uses performance (how well they're doing on submitted work)
+    label, css = db.grade_label(performance)
+    target_label, target_css = db.grade_label(m["target_grade"])
 
     assessments_data = []
     for a in assessments:
@@ -35,7 +41,8 @@ def build_module_data(m):
         "target_grade": m["target_grade"],
         "target_label": target_label,
         "target_css": target_css,
-        "average": avg,
+        "earned": earned,           # raw marks banked (e.g. 16.00)
+        "performance": performance,  # normalised performance (e.g. 80.00)
         "label": label,
         "css": css,
         "total_weight": total_weight,
@@ -44,30 +51,35 @@ def build_module_data(m):
     }
 
 
-# --- dashboard ---
-
 @app.route("/")
 def dashboard():
     year_data = {}
     for year in [2, 3]:
         modules = [build_module_data(m) for m in db.get_modules_by_year(year)]
-        year_avg = db.calc_year_average(year)
-        y_label, y_css = db.grade_label(year_avg)
+        y_earned, y_possible = db.calc_year_stats(year)
+        # grade badge on year uses normalised performance (earned/possible*100)
+        y_norm = (y_earned / y_possible * 100) if (y_earned is not None and y_possible) else None
+        y_label, y_css = db.grade_label(y_norm)
         year_data[year] = {
             "modules": modules,
-            "average": year_avg,
+            "earned": y_earned,
+            "possible": y_possible,
             "label": y_label,
             "css": y_css,
             "degree_weight": int(db.YEAR_WEIGHTS[year] * 100),
         }
 
-    degree_avg = db.calc_degree_average()
-    degree_label, degree_css = db.grade_label(degree_avg)
+    degree_earned, degree_possible = db.calc_degree_stats()
+    # normalise for grade boundary classification
+    degree_norm = (degree_earned / degree_possible * 100) if (degree_earned is not None and degree_possible) else None
+    degree_label, degree_css = db.grade_label(degree_norm)
     total_modules = sum(len(year_data[y]["modules"]) for y in year_data)
+
     return render_template(
         "dashboard.html",
         year_data=year_data,
-        degree_avg=degree_avg,
+        degree_earned=degree_earned,
+        degree_possible=degree_possible,
         degree_label=degree_label,
         degree_css=degree_css,
         total_modules=total_modules,
@@ -116,7 +128,7 @@ def delete_module(module_id):
     return redirect(f"/?tab={year}")
 
 
-# --- assessment crud (all redirect back to dashboard) ---
+# --- assessment crud ---
 
 @app.route("/module/<int:module_id>/assessment/add", methods=["POST"])
 def add_assessment(module_id):

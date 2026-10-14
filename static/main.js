@@ -57,14 +57,13 @@ document.addEventListener("DOMContentLoaded", () => {
   if (match) {
     const modId = match[1];
     openAccordion(modId);
-    // scroll to the card after a brief delay to let display kick in
     setTimeout(() => {
       const el = document.getElementById("module-" + modId);
       if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 100);
   }
 
-  // wire up tab buttons
+  // tab buttons
   document.querySelectorAll(".year-tab").forEach(btn => {
     btn.addEventListener("click", () => {
       const t = btn.dataset.tab;
@@ -76,20 +75,44 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
-  // wire up accordion triggers
+  // accordion triggers — stop propagation so buttons inside header don't toggle
   document.querySelectorAll(".accordion-trigger").forEach(header => {
-    header.addEventListener("click", () => {
+    header.addEventListener("click", e => {
+      if (e.target.closest("button, a, form")) return;
       const id = header.dataset.target.replace("acc-", "");
       toggleAccordion(id);
     });
   });
 
+  // edit buttons via data attributes — no inline onclick needed
+  document.addEventListener("click", e => {
+    const btn = e.target.closest(".edit-btn");
+    if (!btn) return;
+    openEditModal(
+      btn.dataset.id,
+      btn.dataset.name,
+      btn.dataset.weighting,
+      btn.dataset.score
+    );
+  });
+
+  // delete confirm via data-confirm attribute — no inline onsubmit needed
+  document.addEventListener("submit", e => {
+    const form = e.target.closest("form[data-confirm]");
+    if (!form) return;
+    if (!confirm(form.dataset.confirm)) e.preventDefault();
+  });
+
   // close modal on overlay click or escape
   const overlay = document.getElementById("editModal");
   if (overlay) {
-    overlay.addEventListener("click", e => { if (e.target === overlay) closeEditModal(); });
+    overlay.addEventListener("click", e => {
+      if (e.target === overlay) closeEditModal();
+    });
   }
-  document.addEventListener("keydown", e => { if (e.key === "Escape") closeEditModal(); });
+  document.addEventListener("keydown", e => {
+    if (e.key === "Escape") closeEditModal();
+  });
 
   // animate progress bars
   document.querySelectorAll(".progress-fill").forEach(el => {
